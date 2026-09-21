@@ -1368,9 +1368,14 @@
     <div class="hud-header">
       <!-- Left Info Box -->
       <div class="glass-card hud-card-compact">
-        <div class="hud-title-wrap">
-          <div class="hud-status-dot"></div>
-          <span class="hud-title">KERALA RAIL RUN</span>
+        <div class="hud-title-wrap" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div class="hud-status-dot"></div>
+            <span class="hud-title">KERALA RAIL RUN</span>
+          </div>
+          <button id="btn-hud-menu" type="button" style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; pointer-events: auto;" title="Controls & Route Menu">
+            ⚙️ MENU
+          </button>
         </div>
         <span class="hud-subtitle">TVC DIVISION · WDM-3D (V2)</span>
         <div class="hud-metrics">
@@ -1664,6 +1669,7 @@
 
           <div class="flow-footer-row">
             <button id="btn-stations-to-trains" class="btn-secondary-flow" type="button">← CHOOSE TRAIN</button>
+            <button id="btn-stations-to-home" class="btn-secondary-flow" type="button">← BACK TO HOME</button>
             <button id="btn-confirm-start" class="btn-primary-flow btn-large-glow" type="button" style="width: auto; padding: 0 28px;">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
               START JOURNEY
@@ -3946,7 +3952,24 @@
     // Helper: Determine next operational station and corridor title based on route logic
     function getStationNextHalt(stationIndex) {
       const stn = STATIONS[stationIndex];
-      if (!stn) return { nextStn: null, corridor: 'UNKNOWN', isTerminus: true };
+      if (!stn) return { nextStn: null, corridor: 'UNKNOWN', isTerminus: true, distKm: 0 };
+
+      const buildResult = (nextStn, corridor, isTerminus) => {
+        let distKm = 3.5;
+        if (nextStn) {
+          if (nextStn.km != null && stn.km != null && !isNaN(nextStn.km) && !isNaN(stn.km)) {
+            distKm = Math.abs(Number(nextStn.km) - Number(stn.km));
+          } else {
+            const curIdx = STATIONS.indexOf(stn);
+            const nextIdx = STATIONS.indexOf(nextStn);
+            const idxDiff = Math.abs(nextIdx - curIdx);
+            distKm = idxDiff > 0 ? idxDiff * 3.2 : 3.5;
+          }
+        } else {
+          distKm = 0;
+        }
+        return { nextStn, corridor, isTerminus, distKm };
+      };
 
       // 1. Sengottai branch (eastward into Western Ghats)
       const sengottaiIdx = ROUTE_CORRIDORS.SENGOTTAI.indexOf(stn.id);
@@ -3954,9 +3977,9 @@
         if (sengottaiIdx < ROUTE_CORRIDORS.SENGOTTAI.length - 1) {
           const nextId = ROUTE_CORRIDORS.SENGOTTAI[sengottaiIdx + 1];
           const nextIdx = STATIONS.findIndex(s => s.id === nextId);
-          return { nextStn: STATIONS[nextIdx], corridor: 'KOLLAM–SENGOTTAI GHAT LINE', isTerminus: false };
+          return buildResult(STATIONS[nextIdx], 'KOLLAM–SENGOTTAI GHAT LINE', false);
         } else {
-          return { nextStn: null, corridor: 'ARYANKAVU GHAT TERMINUS', isTerminus: true };
+          return buildResult(null, 'ARYANKAVU GHAT TERMINUS', true);
         }
       }
 
@@ -3966,15 +3989,15 @@
         if (nilamburIdx < ROUTE_CORRIDORS.NILAMBUR.length - 1) {
           const nextId = ROUTE_CORRIDORS.NILAMBUR[nilamburIdx + 1];
           const nextIdx = STATIONS.findIndex(s => s.id === nextId);
-          return { nextStn: STATIONS[nextIdx], corridor: 'SHORANUR–NILAMBUR BRANCH', isTerminus: false };
+          return buildResult(STATIONS[nextIdx], 'SHORANUR–NILAMBUR BRANCH', false);
         } else {
-          return { nextStn: null, corridor: 'NILAMBUR ROAD TERMINUS', isTerminus: true };
+          return buildResult(null, 'NILAMBUR ROAD TERMINUS', true);
         }
       }
 
       // 3. Guruvayur terminal branch
       if (stn.id === 'guv') {
-        return { nextStn: null, corridor: 'GURUVAYUR TEMPLE TERMINUS', isTerminus: true };
+        return buildResult(null, 'GURUVAYUR TEMPLE TERMINUS', true);
       }
 
       // 4. Palakkad - Walayar line
@@ -3983,9 +4006,9 @@
         if (pgtIdx < ROUTE_CORRIDORS.PALAKKAD_COIMBATORE.length - 1) {
           const nextId = ROUTE_CORRIDORS.PALAKKAD_COIMBATORE[pgtIdx + 1];
           const nextIdx = STATIONS.findIndex(s => s.id === nextId);
-          return { nextStn: STATIONS[nextIdx], corridor: 'PALAKKAD GAP INTER-STATE ROUTE', isTerminus: false };
+          return buildResult(STATIONS[nextIdx], 'PALAKKAD GAP INTER-STATE ROUTE', false);
         } else {
-          return { nextStn: null, corridor: 'WALAYAR BORDER TERMINUS', isTerminus: true };
+          return buildResult(null, 'WALAYAR BORDER TERMINUS', true);
         }
       }
 
@@ -3995,9 +4018,9 @@
         if (pollachiIdx < ROUTE_CORRIDORS.KOLLENGODE.length - 1) {
           const nextId = ROUTE_CORRIDORS.KOLLENGODE[pollachiIdx + 1];
           const nextIdx = STATIONS.findIndex(s => s.id === nextId);
-          return { nextStn: STATIONS[nextIdx], corridor: 'PALAKKAD–POLLACHI ROUTE', isTerminus: false };
+          return buildResult(STATIONS[nextIdx], 'PALAKKAD–POLLACHI ROUTE', false);
         } else {
-          return { nextStn: null, corridor: 'MUTHALAMADA BORDER TERMINUS', isTerminus: true };
+          return buildResult(null, 'MUTHALAMADA BORDER TERMINUS', true);
         }
       }
 
@@ -4007,9 +4030,9 @@
         if (southIdx < ROUTE_CORRIDORS.SOUTH_BORDER.length - 1) {
           const nextId = ROUTE_CORRIDORS.SOUTH_BORDER[southIdx + 1];
           const nextIdx = STATIONS.findIndex(s => s.id === nextId);
-          return { nextStn: STATIONS[nextIdx], corridor: 'NAGERCOIL CORRIDOR (SOUTHBOUND)', isTerminus: false };
+          return buildResult(STATIONS[nextIdx], 'NAGERCOIL CORRIDOR (SOUTHBOUND)', false);
         } else {
-          return { nextStn: null, corridor: 'PARASSALA BORDER TERMINUS', isTerminus: true };
+          return buildResult(null, 'PARASSALA BORDER TERMINUS', true);
         }
       }
 
@@ -4018,7 +4041,7 @@
       if (coastIdx >= 1 && coastIdx < ROUTE_CORRIDORS.ALAPPUZHA_COASTAL.length - 1) {
         const nextId = ROUTE_CORRIDORS.ALAPPUZHA_COASTAL[coastIdx + 1];
         const nextIdx = STATIONS.findIndex(s => s.id === nextId);
-        return { nextStn: STATIONS[nextIdx], corridor: 'ALAPPUZHA COASTAL LINE (NORTHBOUND)', isTerminus: false };
+        return buildResult(STATIONS[nextIdx], 'ALAPPUZHA COASTAL LINE (NORTHBOUND)', false);
       }
 
       // 8. Mainline (South to North by routeOrder)
@@ -4026,19 +4049,20 @@
         const mainlineNext = STATIONS.filter(s => s.routeOrder !== null && s.routeOrder > stn.routeOrder)
                                      .sort((a, b) => a.routeOrder - b.routeOrder);
         if (mainlineNext.length > 0) {
-          return { nextStn: mainlineNext[0], corridor: 'KERALA MAINLINE (NORTHBOUND)', isTerminus: false };
+          return buildResult(mainlineNext[0], 'KERALA MAINLINE (NORTHBOUND)', false);
         } else {
-          return { nextStn: null, corridor: 'MANJESHWAR NORTH TERMINUS', isTerminus: true };
+          return buildResult(null, 'MANJESHWAR NORTH TERMINUS', true);
         }
       }
 
       // Fallback sequential
       if (stationIndex < STATIONS.length - 1) {
-        return { nextStn: STATIONS[stationIndex + 1], corridor: 'NORTHBOUND JOURNEY', isTerminus: false };
+        return buildResult(STATIONS[stationIndex + 1], 'NORTHBOUND JOURNEY', false);
       }
-      return { nextStn: null, corridor: 'ROUTE TERMINUS', isTerminus: true };
+      return buildResult(null, 'ROUTE TERMINUS', true);
     }
-// Device detection
+
+    // Device detection
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 
     // Train Types Specification
@@ -4886,6 +4910,113 @@
         osc.stop(now + duration + 0.05);
       });
     }
+
+    /* =========================================================================
+       SECTION 4B: PROCEDURAL RAIL-JOINT CLICKING AUDIO ENGINE (TA-TAK RHYTHM)
+       ========================================================================= */
+    const RailJointAudioSystem = {
+      initialized: false,
+      jointAccumulator: 0,
+      nextJointDistance: 13.0, // Standard Indian Railways fishplated track rail length (13 metres)
+      lastClickTime: 0,
+
+      init() {
+        this.jointAccumulator = 0;
+        this.nextJointDistance = 13.0 + (Math.random() - 0.5) * 2.4;
+        this.initialized = true;
+      },
+
+      // Synthesizes a realistic wheel-on-rail-joint metallic click and low bass chassis thump
+      playJointClick(timeOffset = 0, volumeScale = 1.0, isSecondaryAxle = false) {
+        if (!audioCtx || audioCtx.state !== 'running') return;
+        if (typeof RainSoundscape !== 'undefined' && RainSoundscape && RainSoundscape.isMuted) return;
+
+        const now = audioCtx.currentTime + timeOffset;
+
+        // 1. Sharp Metallic Wheel Flange Click (Bandpass-filtered noise burst)
+        const clickDuration = isSecondaryAxle ? 0.024 : 0.028;
+        const noiseBufferSize = Math.max(1, Math.floor(audioCtx.sampleRate * clickDuration));
+        const noiseBuffer = audioCtx.createBuffer(1, noiseBufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseBufferSize; i++) {
+          output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (noiseBufferSize * 0.22));
+        }
+
+        const noiseNode = audioCtx.createBufferSource();
+        noiseNode.buffer = noiseBuffer;
+
+        const bandpass = audioCtx.createBiquadFilter();
+        bandpass.type = 'bandpass';
+        bandpass.frequency.setValueAtTime(isSecondaryAxle ? 2100 : 2350, now);
+        bandpass.Q.setValueAtTime(4.2, now);
+
+        const clickGain = audioCtx.createGain();
+        const baseVol = Math.min(0.65, Math.max(0.06, (state.speed / 28) * 0.42)) * volumeScale;
+        clickGain.gain.setValueAtTime(baseVol * 0.85, now);
+        clickGain.gain.exponentialRampToValueAtTime(0.0001, now + clickDuration);
+
+        noiseNode.connect(bandpass);
+        bandpass.connect(clickGain);
+        clickGain.connect(audioCtx.destination);
+        noiseNode.start(now);
+
+        // 2. Heavy Sub-Bass Bogie & Ballast Deflection Thud (Sine pitch drop ~155Hz -> 65Hz)
+        const thudOsc = audioCtx.createOscillator();
+        const thudGain = audioCtx.createGain();
+        const thudDuration = isSecondaryAxle ? 0.038 : 0.046;
+
+        thudOsc.type = 'sine';
+        thudOsc.frequency.setValueAtTime(isSecondaryAxle ? 140 : 158, now);
+        thudOsc.frequency.exponentialRampToValueAtTime(65, now + thudDuration);
+
+        thudGain.gain.setValueAtTime(baseVol * 0.95, now);
+        thudGain.gain.exponentialRampToValueAtTime(0.0001, now + thudDuration);
+
+        thudOsc.connect(thudGain);
+        thudGain.connect(audioCtx.destination);
+        thudOsc.start(now);
+        thudOsc.stop(now + thudDuration + 0.01);
+      },
+
+      // Update called on every simulation frame in gameLoop
+      update(simDt) {
+        if (gameState !== 'PLAYING') return;
+        if (!audioCtx || state.speed < 0.8) {
+          this.jointAccumulator = 0;
+          return;
+        }
+
+        // Distance covered this simulation step (meters)
+        this.jointAccumulator += state.speed * simDt;
+
+        // When the distance surpasses the randomized track joint spacing
+        if (this.jointAccumulator >= this.nextJointDistance) {
+          this.jointAccumulator = 0;
+          // Calculate new randomized offset for the next track spacing (13.0m ± 1.2m)
+          this.nextJointDistance = 13.0 + (Math.random() - 0.5) * 2.4;
+
+          const now = performance.now();
+          if (now - this.lastClickTime > 50) {
+            this.lastClickTime = now;
+
+            // Trigger iconic "ta-tak" double click:
+            // 1st axle of lead bogie:
+            this.playJointClick(0, 1.0, false);
+
+            // 2nd axle of bogie (spaced ~2.1m behind lead axle)
+            const axleDelay = Math.max(0.045, Math.min(0.20, 2.1 / state.speed));
+            this.playJointClick(axleDelay, 0.78, true);
+
+            // Long passenger rake trailing coach clicks (adds authentic acoustic depth at speed)
+            if (state.speed > 8.0) {
+              const coachDelay = axleDelay + 0.12 + Math.random() * 0.04;
+              this.playJointClick(coachDelay, 0.42, true);
+              this.playJointClick(coachDelay + axleDelay * 0.9, 0.32, true);
+            }
+          }
+        }
+      }
+    };
 
     /* =========================================================================
        SECTION 5: SHARED BOGIE FACTORY & ROLLING STOCK COMPONENTS
@@ -7323,7 +7454,7 @@
         state.throttle = 0;
         state.brake = 0.8;
         const curStn = STATIONS[state.currentStationIndex];
-        state.statusText = curStn ? `HALTED AT ${curStn.code} (${state.dwellTimer.toFixed(1)}s) · BOARDING` : 'BOARDING COMPLETE';
+        state.statusText = curStn ? `HALTED AT ${curStn.code} (${Number(state.dwellTimer != null ? state.dwellTimer : 0).toFixed(1)}s) · BOARDING` : 'BOARDING COMPLETE';
         if (state.dwellTimer === 0) {
           if (curStn) showToast('Departing ' + curStn.en);
           state.stationServed = false;
@@ -7399,13 +7530,13 @@
       if (!curRig || !curRig.passengers) return;
       for (let p = 0; p < curRig.passengers.length; p++) {
         const pass = curRig.passengers[p];
-        if (pass.state === 'boarding') {
+        if (pass.state === 'boarding' && pass.group) {
           pass.timer += dt;
           // Walk toward track X=0
-          pass.mesh.position.x = THREE.MathUtils.lerp(pass.mesh.position.x, 2.8, dt * 1.5);
-          pass.mesh.position.y = 1.0 + Math.sin(pass.timer * 8) * 0.08;
-          if (Math.abs(pass.mesh.position.x - 2.8) < 0.2) {
-            pass.mesh.visible = false;
+          pass.group.position.x = THREE.MathUtils.lerp(pass.group.position.x, 2.8, dt * 1.5);
+          pass.group.position.y = 1.45 + Math.sin(pass.timer * 8) * 0.08;
+          if (Math.abs(pass.group.position.x - 2.8) < 0.2) {
+            pass.group.visible = false;
             pass.state = 'boarded';
           }
         }
@@ -7700,6 +7831,25 @@
     const flowPanelStations = document.getElementById('flow-panel-stations');
 
     function showFlowPanel(panelId) {
+      console.log("[KERALA RAIL RUN] Opening Flow Panel:", panelId);
+      gameState = 'HOME';
+      state.inHomeMenu = true;
+      rideStarting = false;
+
+      const drawer = document.getElementById('controls-drawer');
+      if (drawer) drawer.style.display = 'none';
+
+      const hud = document.getElementById('hud');
+      if (hud) {
+        hud.style.display = 'none';
+        hud.classList.add('hidden');
+      }
+
+      if (homeFlowOverlay) {
+        homeFlowOverlay.style.display = 'flex';
+        homeFlowOverlay.classList.add('home-flow-active');
+      }
+
       if (flowPanelHome) flowPanelHome.classList.remove('active');
       if (flowPanelTrains) flowPanelTrains.classList.remove('active');
       if (flowPanelStations) flowPanelStations.classList.remove('active');
@@ -7717,24 +7867,33 @@
 
       TRAIN_CONFIGS.forEach(t => {
         const card = document.createElement('div');
-        card.className = `train-card ${t.id === state.selectedTrainId ? 'selected' : ''}`;
+        const isSelected = t.id === state.selectedTrainId;
+        card.className = `train-card ${isSelected ? 'selected' : ''}`;
         card.setAttribute('data-train-id', t.id);
+        card.style.cursor = 'pointer';
         card.innerHTML = `
           <div class="train-card-header">
             <span class="train-card-color-dot" style="background:${t.colorHex || '#3b82f6'};"></span>
-            <div>
+            <div style="flex: 1;">
               <div class="train-card-title">${t.name}</div>
               <div class="train-card-meta">${t.subtitle} · ${t.maxSpeedKmh} km/h</div>
             </div>
+            <span class="train-select-indicator" style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; border: 1px solid ${t.colorHex || '#3b82f6'}; color: ${isSelected ? '#ffffff' : (t.colorHex || '#93c5fd')}; background: ${isSelected ? 'rgba(59,130,246,0.3)' : 'rgba(0,0,0,0.3)'};">
+              ${isSelected ? 'SELECTED' : 'SELECT'}
+            </span>
           </div>
           <div class="train-card-desc">${t.specsDesc || t.colorDesc}</div>
         `;
-        ['click', 'touchend'].forEach(evt => {
-          card.addEventListener(evt, (e) => {
+
+        const handleCardSelect = (e) => {
+          if (e && e.cancelable && e.type === 'touchend') {
             e.preventDefault();
-            selectTrain(t.id);
-          });
-        });
+          }
+          selectTrain(t.id);
+        };
+
+        card.addEventListener('click', handleCardSelect);
+        card.addEventListener('touchend', handleCardSelect, { passive: false });
         container.appendChild(card);
       });
       updateTrainDetailBanner();
@@ -7746,10 +7905,17 @@
 
       // Update UI cards
       document.querySelectorAll('.train-card').forEach(c => {
-        if (c.getAttribute('data-train-id') === trainId) {
+        const isMatch = c.getAttribute('data-train-id') === trainId;
+        if (isMatch) {
           c.classList.add('selected');
         } else {
           c.classList.remove('selected');
+        }
+        const indicator = c.querySelector('.train-select-indicator');
+        if (indicator) {
+          indicator.textContent = isMatch ? 'SELECTED' : 'SELECT';
+          indicator.style.color = isMatch ? '#ffffff' : '#93c5fd';
+          indicator.style.background = isMatch ? 'rgba(59,130,246,0.3)' : 'rgba(0,0,0,0.3)';
         }
       });
 
@@ -7814,7 +7980,7 @@
         const item = document.createElement('div');
         item.className = `station-list-item ${isSelected ? 'selected' : ''}`;
         item.setAttribute('data-stn-idx', globalIdx);
-        const kmVal = (stn.km != null ? stn.km : (globalIdx * 3.2)).toFixed(1);
+        const kmVal = Number(stn.km != null && !isNaN(stn.km) ? stn.km : (globalIdx * 3.2)).toFixed(1);
 
         item.innerHTML = `
           <div class="stn-left-col">
@@ -7881,7 +8047,14 @@
       if (sumName) sumName.textContent = stn.en;
       if (sumCode) sumCode.textContent = stn.code;
       if (sumDist) sumDist.textContent = `${stn.district} District`;
-      if (sumNext) sumNext.textContent = haltInfo.nextStn ? `${haltInfo.nextStn.en} [${haltInfo.nextStn.code}] · ${haltInfo.distKm.toFixed(1)} km` : 'Terminus';
+      if (sumNext) {
+        if (haltInfo && haltInfo.nextStn) {
+          const distKmVal = (haltInfo.distKm != null && !isNaN(haltInfo.distKm)) ? Number(haltInfo.distKm) : 3.5;
+          sumNext.textContent = `${haltInfo.nextStn.en} [${haltInfo.nextStn.code}] · ${distKmVal.toFixed(1)} km`;
+        } else {
+          sumNext.textContent = 'Terminus';
+        }
+      }
     }
 
     /* =========================================================================
@@ -7889,27 +8062,14 @@
        ========================================================================= */
     function startRide() {
       console.log("[KERALA RAIL RUN] START RIDE CLICKED");
-      if (rideStarting || gameState === 'PLAYING') {
-        console.warn("[KERALA RAIL RUN] Start ride already in progress or running, ignoring duplicate call.");
+      if (rideStarting) {
+        console.warn("[KERALA RAIL RUN] Start ride already in progress, ignoring duplicate call.");
         return;
       }
       rideStarting = true;
 
-      const trainCfg = TRAIN_CONFIGS.find(t => t.id === state.selectedTrainId);
-      if (!trainCfg) {
-        rideStarting = false;
-        showToast("SELECT A TRAIN");
-        showFlowPanel('trains');
-        return;
-      }
-
-      const departureStation = STATIONS[state.selectedDepartureIndex];
-      if (!departureStation) {
-        rideStarting = false;
-        showToast("SELECT DEPARTURE STATION");
-        showFlowPanel('stations');
-        return;
-      }
+      const trainCfg = TRAIN_CONFIGS.find(t => t.id === state.selectedTrainId) || TRAIN_CONFIGS[0];
+      const departureStation = STATIONS[state.selectedDepartureIndex] || STATIONS[0];
 
       const startBtn = document.getElementById('btn-start-ride');
       const confirmBtn = document.getElementById('btn-confirm-start');
@@ -7966,6 +8126,10 @@
           hud.classList.remove('hidden');
         }
 
+        // Close drawer if open
+        const drawer = document.getElementById('controls-drawer');
+        if (drawer) drawer.style.display = 'none';
+
         // Initialize HUD text values
         if (domHUD.stnName) domHUD.stnName.textContent = departureStation.en;
         if (domHUD.stnCode) domHUD.stnCode.textContent = `[${departureStation.code}]`;
@@ -7975,6 +8139,9 @@
 
         // 7. Initialize Audio Engine safely on user gesture
         initAudio();
+        if (typeof RailJointAudioSystem !== 'undefined' && RailJointAudioSystem) {
+          RailJointAudioSystem.init();
+        }
 
         // 8. Ensure Animation Loop is running
         startAnimationLoop();
@@ -8142,7 +8309,7 @@
         domHUD.barBrake.style.width = `${Math.round(state.brake * 100)}%`;
       }
       if (domHUD.dist) {
-        domHUD.dist.textContent = `${(state.routeDistance / 1000).toFixed(2)} km`;
+        domHUD.dist.textContent = `${(Number(state.routeDistance != null ? state.routeDistance : 0) / 1000).toFixed(2)} km`;
       }
       if (domHUD.halts) {
         domHUD.halts.textContent = state.halts;
@@ -8159,9 +8326,9 @@
         if (domHUD.stnCode) domHUD.stnCode.textContent = `[${nextStn.code}]`;
         if (domHUD.stnDist) {
           if (state.dwellTimer > 0) {
-            domHUD.stnDist.textContent = `HALTED (${state.dwellTimer.toFixed(1)}s)`;
+            domHUD.stnDist.textContent = `HALTED (${Number(state.dwellTimer != null ? state.dwellTimer : 0).toFixed(1)}s)`;
           } else {
-            domHUD.stnDist.textContent = `${(Math.max(0, distToStn) / 1000).toFixed(1)} km`;
+            domHUD.stnDist.textContent = `${(Math.max(0, Number(distToStn != null ? distToStn : 0)) / 1000).toFixed(1)} km`;
           }
         }
 
@@ -8242,6 +8409,11 @@
         ensureStreaming();
         updateOncomingTrains(simDt);
 
+        // Procedural Rail-Joint Clicking Audio (Increases tempo with train speed)
+        if (typeof RailJointAudioSystem !== 'undefined' && RailJointAudioSystem) {
+          RailJointAudioSystem.update(simDt);
+        }
+
         // Update Locomotive Position
         if (trainGroup) {
           trainGroup.position.z = -state.distance;
@@ -8276,31 +8448,26 @@
         }
         buttonElement._startRideAttached = true;
 
-        let lastTriggerTime = 0;
+        let debounce = false;
 
         const handleStartTrigger = (e) => {
-          // Primary rideStarting guard & game state check to prevent accidental duplicate triggers
-          if (rideStarting || gameState === 'PLAYING') {
+          if (rideStarting) {
             if (e && e.cancelable) e.preventDefault();
-            if (e) e.stopPropagation();
             return;
           }
-
-          const now = Date.now();
-          // Debounce guard to prevent rapid multi-event firing (e.g. pointerdown followed immediately by pointerup / click)
-          if (now - lastTriggerTime < 800) {
+          if (debounce) {
             if (e && e.cancelable) e.preventDefault();
-            if (e) e.stopPropagation();
             return;
           }
-          lastTriggerTime = now;
+          debounce = true;
+          setTimeout(() => { debounce = false; }, 300);
 
-          if (e && e.cancelable) e.preventDefault();
+          if (e && e.cancelable && e.type !== 'click') e.preventDefault();
           if (e) e.stopPropagation();
 
           console.log(`[KERALA RAIL RUN] ${buttonName} triggered via [${e ? e.type : 'manual'}]`);
 
-          // Prime Web Audio context on the earliest user interaction
+          // Prime Web Audio context on user interaction
           try {
             if (typeof initAudio === 'function') initAudio();
           } catch (audioErr) {
@@ -8310,20 +8477,8 @@
           startRide();
         };
 
-        // Pointer Events: Modern cross-device standard covering desktop mouse, mobile touch, and stylus
-        if (window.PointerEvent) {
-          buttonElement.addEventListener('pointerdown', handleStartTrigger, { passive: false });
-          buttonElement.addEventListener('pointerup', handleStartTrigger, { passive: false });
-        }
-
-        // Touch Events: Backward-compatible fallback for mobile Safari and Android webviews
-        buttonElement.addEventListener('touchstart', handleStartTrigger, { passive: false });
+        buttonElement.addEventListener('click', handleStartTrigger);
         buttonElement.addEventListener('touchend', handleStartTrigger, { passive: false });
-
-        // Click Event: Desktop mouse click, trackpad tap, and assistive technologies
-        buttonElement.addEventListener('click', handleStartTrigger, { passive: false });
-
-        // Keyboard Accessibility: Trigger on Enter or Spacebar when button has focus
         buttonElement.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' || e.key === ' ' || e.code === 'Space') {
             handleStartTrigger(e);
@@ -8347,7 +8502,7 @@
         console.error("[KERALA RAIL RUN] btn-confirm-start NOT FOUND in DOM!");
       }
 
-      // 2. Navigation between Home Flow Panels
+      // 2. Navigation between Home Flow Panels (Change Train, Change Departure, Back)
       const btnNavTrains = document.getElementById('btn-nav-trains');
       if (btnNavTrains) {
         btnNavTrains.addEventListener('click', () => showFlowPanel('trains'));
@@ -8383,32 +8538,79 @@
       if (btnStationsBack) {
         btnStationsBack.addEventListener('click', () => showFlowPanel('home'));
       }
+      const btnStationsToHome = document.getElementById('btn-stations-to-home');
+      if (btnStationsToHome) {
+        btnStationsToHome.addEventListener('click', () => showFlowPanel('home'));
+      }
       const btnStationsToTrains = document.getElementById('btn-stations-to-trains');
       if (btnStationsToTrains) {
         btnStationsToTrains.addEventListener('click', () => showFlowPanel('trains'));
       }
 
-      // In-game Drawer Button: Change Train / Route
+      // In-game Drawer Controls & Toggles
+      const controlsDrawer = document.getElementById('controls-drawer');
+      const toggleDrawer = () => {
+        if (!controlsDrawer) return;
+        const isOpen = controlsDrawer.style.display === 'flex';
+        controlsDrawer.style.display = isOpen ? 'none' : 'flex';
+      };
+      const closeDrawer = () => {
+        if (controlsDrawer) controlsDrawer.style.display = 'none';
+      };
+
+      const btnTouchMenu = document.getElementById('btn-touch-menu');
+      if (btnTouchMenu) {
+        btnTouchMenu.addEventListener('click', toggleDrawer);
+      }
+      const btnHudMenu = document.getElementById('btn-hud-menu');
+      if (btnHudMenu) {
+        btnHudMenu.addEventListener('click', toggleDrawer);
+      }
+      const btnDrawerClose = document.getElementById('btn-drawer-close');
+      if (btnDrawerClose) {
+        btnDrawerClose.addEventListener('click', closeDrawer);
+      }
+
+      // In-game Drawer: Change Train
       const btnChangeTrain = document.getElementById('btn-change-train');
       if (btnChangeTrain) {
         btnChangeTrain.addEventListener('click', () => {
-          gameState = 'HOME';
-          state.inHomeMenu = true;
-          const homeOverlay = document.getElementById('home-flow-overlay');
-          if (homeOverlay) {
-            homeOverlay.style.display = 'flex';
-            homeOverlay.classList.add('home-flow-active');
-          }
-          const hud = document.getElementById('hud');
-          if (hud) hud.style.display = 'none';
+          closeDrawer();
           showFlowPanel('trains');
+        });
+      }
+
+      // In-game Drawer: Change Departure
+      const btnChangeDeparture = document.getElementById('btn-change-departure');
+      if (btnChangeDeparture) {
+        btnChangeDeparture.addEventListener('click', () => {
+          closeDrawer();
+          showFlowPanel('stations');
+        });
+      }
+
+      // In-game Drawer: Soundscape Rain Toggle
+      const btnSoundscape = document.getElementById('btn-soundscape');
+      if (btnSoundscape) {
+        btnSoundscape.addEventListener('click', () => {
+          if (typeof RainSoundscape !== 'undefined' && RainSoundscape) {
+            const isUnmuted = RainSoundscape.toggleMute();
+            const statusEl = document.getElementById('ui-soundscape-status');
+            if (statusEl) {
+              statusEl.textContent = isUnmuted ? 'ACTIVE / SOUND ON' : 'MUTED';
+            }
+            showToast(isUnmuted ? 'Rain Audio: UNMUTED' : 'Rain Audio: MUTED');
+          }
         });
       }
 
       // In-game Restart Button
       const btnRestart = document.getElementById('btn-restart');
       if (btnRestart) {
-        btnRestart.addEventListener('click', restartGame);
+        btnRestart.addEventListener('click', () => {
+          closeDrawer();
+          restartGame();
+        });
       }
 
       // District Filter Tabs
@@ -8483,9 +8685,23 @@
       if (btnHonk) {
         btnHonk.addEventListener('click', honk);
       }
+      const btnTouchHorn = document.getElementById('btn-touch-horn');
+      if (btnTouchHorn) {
+        btnTouchHorn.addEventListener('click', (e) => {
+          e.preventDefault();
+          honk();
+        });
+      }
       const btnCam = document.getElementById('btn-cam');
       if (btnCam) {
         btnCam.addEventListener('click', cycleCameraMode);
+      }
+      const btnTouchCam = document.getElementById('btn-touch-cam');
+      if (btnTouchCam) {
+        btnTouchCam.addEventListener('click', (e) => {
+          e.preventDefault();
+          cycleCameraMode();
+        });
       }
       const btnClimate = document.getElementById('btn-climate');
       if (btnClimate) {

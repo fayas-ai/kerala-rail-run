@@ -1,0 +1,6 @@
+{
+  "name": "Kerala Rail Run — WDM-3D (v2)",
+  "description": "3D Indian Railways driving simulator featuring WDM-3D diesel locomotive, 12-coach passenger rake, realistic stations, and dynamic weather along Kerala's scenic rail corridor.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
